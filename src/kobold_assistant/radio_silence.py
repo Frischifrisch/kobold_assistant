@@ -43,13 +43,9 @@ class RadioSilence:
         # Re-assign the real fds back
         if self.silence_stdout:
             os.dup2(self.stdout_save_fd, 1)
-            fds_to_close.append(self.stdout_null_fd)
-            fds_to_close.append(self.stdout_save_fd)
-
+            fds_to_close.extend((self.stdout_null_fd, self.stdout_save_fd))
         if self.silence_stderr:
             os.dup2(self.stderr_save_fd, 2)
-            fds_to_close.append(self.stderr_null_fd)
-            fds_to_close.append(self.stderr_save_fd)
-
+            fds_to_close.extend((self.stderr_null_fd, self.stderr_save_fd))
         for fd in fds_to_close:
             os.close(fd)
