@@ -45,8 +45,7 @@ def get_microphone_device_id(Microphone) -> int:
     if settings.MICROPHONE_DEVICE_INDEX is not None:
         return settings.MICROPHONE_DEVICE_INDEX
 
-    working_mics = Microphone.list_working_microphones()
-    if working_mics:
+    if working_mics := Microphone.list_working_microphones():
         return list(working_mics.keys())[0]
 
     return None
@@ -80,14 +79,13 @@ def prompt_ai(prompt: str, stop_words: List[str]) -> str:
         json_response = json.loads(response_obj.read().decode(response_charset))
 
         try:
-            response_text = json_response['results'][0]['text']
-            return response_text
+            return json_response['results'][0]['text']
         except (KeyError, IndexError) as e:
             logger.error("KoboldAI API returned an unexpected response format!")
             return None
 
     except urllib.error.URLError as e:
-        logger.error(f"The KoboldAI API returned %r!", e)
+        logger.error("The KoboldAI API returned %r!", e)
 
     return None
 
@@ -97,8 +95,7 @@ temp_audio_files = {}
 
 def expand_text(text_match) -> str:
     text = text_match.group(0)
-    replacement = ' '.join([ s.text_spoken for s in gruut.sentences(text) ])
-    return replacement
+    return ' '.join([ s.text_spoken for s in gruut.sentences(text) ])
 
 
 def expand_to_pronounced_word_form(text):
@@ -107,11 +104,9 @@ def expand_to_pronounced_word_form(text):
     component = r"([0-9]|[A-Za-z]+)"
     term = component + r"\." + component
     abbreviation = r"([A-Z](\.|)){2,}"
-    expr_pattern = r"(" + term + r"|" + abbreviation + r"|" + r"\=" + r")"
+    expr_pattern = f"({term}|{abbreviation}|" + r"\=" + r")"
 
-    expanded_text = re.sub(expr_pattern, expand_text, text)
-
-    return expanded_text
+    return re.sub(expr_pattern, expand_text, text)
 
 
 def say(tts_engine, text, cache=False, warmup_only=False):
@@ -231,7 +226,7 @@ def warm_up_tts_engine(tts_engine):
 def build_prompt_text(assistant_name: str, assistant_desc: str, chat_log: List[str], max_context_length: int) -> str:
     max_context_length = max_context_length # koboldai's API doesn't allow more, for now.
 
-    context = "" + assistant_desc
+    context = f"{assistant_desc}"
     context_len = len(assistant_desc) + len(assistant_name) + len("\n\n:")
 
     limited_chat_log = []
@@ -248,8 +243,7 @@ def build_prompt_text(assistant_name: str, assistant_desc: str, chat_log: List[s
         limited_chat_log.insert(0, next_line)
         context_len += remaining_space
 
-    prompt = '\n'.join((context, *limited_chat_log, f'{assistant_name}: '))
-    return prompt
+    return '\n'.join((context, *limited_chat_log, f'{assistant_name}: '))
 
 
 def clean_ai_response(text: str) -> str:
@@ -269,13 +263,11 @@ def get_assistant_response(tts_engine, context: str, chat_log: List[str], assist
 
             response_text = prompt_ai(conversation_so_far, settings.AI_MODEL_STOP_WORDS)
 
-            if response_text is None:
-                time.sleep(2)
-                logger.warning("Got no (valid) output from the LLM. Retrying request to KoboldAI API.")
-                continue
-            else:
+            if response_text is not None:
                 break
 
+            time.sleep(2)
+            logger.warning("Got no (valid) output from the LLM. Retrying request to KoboldAI API.")
         stripped_response_text = strip_stop_words(response_text)
         if stripped_response_text is None:
             return settings.NON_COMMITTAL_RESPONSE, True
@@ -328,9 +320,13 @@ def get_user_input(tts_engine, stt_engine, source, notify_on_silent_periods=True
 
             for stt_hallucination in settings.STT_HALLUCINATIONS:
                 if stripped_user_response != stt_hallucination:
-                    logger.debug(f"No match for %r as a speech-to-text hallucination against %r", stripped_user_response, stt_hallucination)
+                    logger.debug(
+                        "No match for %r as a speech-to-text hallucination against %r",
+                        stripped_user_response,
+                        stt_hallucination,
+                    )
                     continue
-                    
+
                 logger.debug("Detected speech-to-text hallucination: %r", stripped_user_response)
 
                 if notify_on_silent_periods:
@@ -385,9 +381,12 @@ def clean_as_user_command(s: str) -> str:
 
 def run_assistant_dialog(settings, stt_engine, tts_engine, source, context, chat_log):
     if settings.AUTO_CALIBRATE_MIC is True:
-        logger.info(f"Calibrating microphone; please wait %d seconds (warning: this doesn't seem to work, and might result in the AI not hearing your speech!) ...", settings.AUTO_CALIBRATE_MIC_SECONDS)
+        logger.info(
+            "Calibrating microphone; please wait %d seconds (warning: this doesn't seem to work, and might result in the AI not hearing your speech!) ...",
+            settings.AUTO_CALIBRATE_MIC_SECONDS,
+        )
         stt_engine.adjust_for_ambient_noise(source, duration=settings.AUTO_CALIBRATE_MIC_SECONDS)
-        logger.info(f"Microphone calibration complete.")
+        logger.info("Microphone calibration complete.")
 
     logger.info("Initializing models and caching some data. Please wait, it could take a few minutes.")
 

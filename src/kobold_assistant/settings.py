@@ -21,12 +21,12 @@ settings_paths = [
 ]
 
 
-base_setting_names = set((
+base_setting_names = {
     'USER_NAME',
     'ASSISTANT_NAME',
     'LANGUAGE',
     'GENERATE_URI',
-))
+}
 
 
 def load_settings_template():
@@ -68,7 +68,7 @@ def build_settings():
 
     # try to loop until we have all variables needed to populate template values in the settings.
     while True:
-        if len(remaining_settings) == 0:
+        if not remaining_settings:
             break
 
         made_progress = False
